@@ -1,6 +1,8 @@
-# PaceTune MVP
+# PaceTune
 
-First local MVP for mapping your run timeline to Spotify listening history.
+Run + song matcher with:
+- Local CLI workflow (JSON + HTML exports)
+- Hosted web app workflow (OAuth + sync endpoint)
 
 ## What this does
 
@@ -12,7 +14,7 @@ First local MVP for mapping your run timeline to Spotify listening history.
 ## Current scope
 
 - Supports **Strava + Spotify** only.
-- Built for your own account first (no multi-user auth yet).
+- Web app stores provider refresh tokens in secure HttpOnly cookies for current user session.
 - Uses Spotify `recently-played` API (best for recent sessions, not full historical export).
 
 ## Prerequisites
@@ -28,12 +30,34 @@ First local MVP for mapping your run timeline to Spotify listening history.
 ## Setup
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
 cp .env.example .env
 ```
 
 Fill `.env` with your credentials/tokens.
+
+## Web app (Vercel / Next.js)
+
+Install and run locally:
+
+```bash
+npm install
+npm run dev
+```
+
+Set `APP_URL` in env:
+
+- local: `APP_URL=http://localhost:3000`
+- prod: `APP_URL=https://pacetune.vercel.app`
+
+OAuth routes used by hosted app:
+
+- Spotify callback: `/api/auth/spotify/callback`
+- Strava callback: `/api/auth/strava/callback`
+
+Provider dashboard setup:
+
+- Spotify Redirect URI: `https://pacetune.vercel.app/api/auth/spotify/callback`
+- Strava Authorization Callback Domain: `pacetune.vercel.app`
 
 ## Get Spotify refresh token (one-time)
 
@@ -53,7 +77,7 @@ python pacetune.py spotify-exchange-code --code "<CODE>" --redirect-uri http://1
 
 Use the returned `refresh_token` in `.env`.
 
-## Run sync
+## Run sync (CLI)
 
 ```bash
 python pacetune.py sync \
