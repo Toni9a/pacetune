@@ -2,6 +2,12 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { COOKIE_NAMES } from "@/lib/oauth";
 import { syncRunWindow } from "@/lib/pacetune";
+import {
+  getOrCreateOwnerId,
+  hasSupabaseConfig,
+  ownerCookieName,
+  persistReport
+} from "@/lib/supabase-rest";
 
 export async function GET(request) {
   try {
@@ -28,7 +34,21 @@ export async function GET(request) {
       start,
       end
     });
-    return NextResponse.json(report);
+
+    const ownerId = getOrCreateOwnerId(cookieStore);
+    if (hasSupabaseConfig()) {
+      await persistReport(ownerId, report, "live");
+    }
+
+    const response = NextResponse.json(report);
+    response.cookies.set(ownerCookieName(), ownerId, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 365 * 24 * 60 * 60
+    });
+    return response;
   } catch (error) {
     return NextResponse.json({ error: error.message || "Unknown error." }, { status: 500 });
   }

@@ -38,6 +38,40 @@ export default async function HomePage() {
           </a>
         </div>
       </section>
+      <section className="panel">
+        <h2>Example PaceTune</h2>
+        <p>What users see after sync: songs grouped by each progressive km split.</p>
+        <div className="landing-demo">
+          <div className="chat-row">
+            <div className="bubble">
+              <p className="bubble-title">1 km</p>
+              <p className="bubble-line">
+                Dreams <span>- Fleetwood Mac</span>
+              </p>
+              <p className="bubble-line">
+                Japanese Denim <span>- Daniel Caesar</span>
+              </p>
+            </div>
+            <p className="bubble-meta">5:25 /km</p>
+          </div>
+          <div className="chat-row">
+            <div className="bubble">
+              <p className="bubble-title">2 km</p>
+              <p className="bubble-line">
+                Small Worlds <span>- Mac Miller</span>
+              </p>
+            </div>
+            <p className="bubble-meta">6:40 /km</p>
+          </div>
+          <div className="chat-row">
+            <div className="bubble empty">
+              <p className="bubble-title">3 km</p>
+              <p className="bubble-line muted">No song in this split</p>
+            </div>
+            <p className="bubble-meta">6:12 /km</p>
+          </div>
+        </div>
+      </section>
       <SyncPanel ready={spotifyConnected && stravaConnected} />
     </main>
   );

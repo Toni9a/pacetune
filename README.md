@@ -59,6 +59,21 @@ Provider dashboard setup:
 - Spotify Redirect URI: `https://pacetune.vercel.app/api/auth/spotify/callback`
 - Strava Authorization Callback Domain: `pacetune.vercel.app`
 
+## Supabase persistence (recommended)
+
+To keep old PaceTunes beyond Spotify's recent-play window:
+
+1. Create a Supabase project.
+2. In Supabase SQL editor, run [`supabase/schema.sql`](./supabase/schema.sql).
+3. Add env vars (local + Vercel):
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY` (server only, never expose in client)
+
+Then:
+- `/api/sync` writes run/split/song mappings to Supabase.
+- `/api/history` reads saved PaceTunes for the current user cookie.
+- UI button `Load Saved PaceTunes` loads persisted history.
+
 ## Get Spotify refresh token (one-time)
 
 1. Configure a redirect URI in Spotify Dashboard (example: `http://127.0.0.1:8888/callback`).

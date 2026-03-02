@@ -253,6 +253,14 @@ a {
   align-items: flex-end;
 }
 
+.landing-demo {
+  margin-top: 10px;
+  border-radius: 16px;
+  border: 1px solid #dbe5fb;
+  background: linear-gradient(180deg, #edf3ff, #f8fbff);
+  padding: 12px;
+}
+
 .bubble {
   width: min(92%, 620px);
   background: linear-gradient(125deg, #1d66f2, #0b52de);

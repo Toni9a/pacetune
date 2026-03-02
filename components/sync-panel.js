@@ -117,6 +117,24 @@ export default function SyncPanel({ ready }) {
     }
   }
 
+  async function onLoadSaved() {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch("/api/history");
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Failed to load saved PaceTunes.");
+      }
+      setReport(payload);
+      setSource("saved");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function onPickBackground(event) {
     const file = event.target.files?.[0];
     if (!file) {
@@ -325,6 +343,9 @@ export default function SyncPanel({ ready }) {
           <button className="btn" type="button" onClick={onLoadDemo} disabled={loading}>
             Use Demo Data
           </button>
+          <button className="btn" type="button" onClick={onLoadSaved} disabled={loading}>
+            Load Saved PaceTunes
+          </button>
         </div>
         <div className="demo-controls">
           <label htmlFor="demo-scenario">Demo Scenario</label>
@@ -350,6 +371,7 @@ export default function SyncPanel({ ready }) {
               Viewing demo data: <strong>{report.scenario_label || demoScenario}</strong> (no provider login required).
             </p>
           ) : null}
+          {source === "saved" ? <p className="demo-badge">Viewing saved PaceTunes from storage.</p> : null}
           <div className="view-toggle" role="tablist" aria-label="Visualization mode">
             <button
               type="button"
