@@ -1,6 +1,8 @@
+import crypto from "node:crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { appUrl, commonCookieOptions, COOKIE_NAMES, formBody, parseJson } from "@/lib/oauth";
+import { findUserByProvider, getSessionUserId, hasSupabaseConfig, upsertProviderAccount } from "@/lib/supabase-rest";
 
 export async function GET(request) {
   const url = new URL(request.url);
@@ -33,14 +35,42 @@ export async function GET(request) {
     })
   });
   const payload = await parseJson(tokenResponse, "Spotify code exchange");
+  const accessToken = payload.access_token;
+  if (!accessToken) {
+    return NextResponse.redirect(`${appUrl()}?spotify_error=missing_access_token`);
+  }
 
-  if (!payload.refresh_token && !cookieStore.get(COOKIE_NAMES.spotifyRefresh)?.value) {
+  const profileResponse = await fetch("https://api.spotify.com/v1/me", {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  const profile = await parseJson(profileResponse, "Spotify profile fetch");
+  const spotifyUserId = profile.id;
+  if (!spotifyUserId) {
+    return NextResponse.redirect(`${appUrl()}?spotify_error=missing_spotify_user_id`);
+  }
+
+  if (!hasSupabaseConfig() && !payload.refresh_token && !cookieStore.get(COOKIE_NAMES.spotifyRefresh)?.value) {
     return NextResponse.redirect(`${appUrl()}?spotify_error=missing_refresh_token`);
   }
 
   const response = NextResponse.redirect(`${appUrl()}?spotify_connected=1`);
   response.cookies.set(COOKIE_NAMES.spotifyState, "", { ...commonCookieOptions(), maxAge: 0 });
-  if (payload.refresh_token) {
+  if (hasSupabaseConfig()) {
+    const existingUser = await findUserByProvider("spotify", spotifyUserId);
+    const sessionUser = getSessionUserId(cookieStore);
+    const userId = sessionUser || existingUser || crypto.randomUUID();
+    await upsertProviderAccount({
+      userId,
+      provider: "spotify",
+      providerUserId: spotifyUserId,
+      refreshToken: payload.refresh_token || null
+    });
+    response.cookies.set(COOKIE_NAMES.userSession, userId, {
+      ...commonCookieOptions(),
+      maxAge: 365 * 24 * 60 * 60
+    });
+  } else if (payload.refresh_token) {
+    // Legacy fallback mode without Supabase persistence.
     response.cookies.set(COOKIE_NAMES.spotifyRefresh, payload.refresh_token, {
       ...commonCookieOptions(),
       maxAge: 365 * 24 * 60 * 60

@@ -1,11 +1,24 @@
 import { cookies } from "next/headers";
 import SyncPanel from "@/components/sync-panel";
 import { COOKIE_NAMES } from "@/lib/oauth";
+import { getSessionUserId, hasSupabaseConfig, listProvidersForUser } from "@/lib/supabase-rest";
 
 export default async function HomePage() {
   const cookieStore = await cookies();
-  const spotifyConnected = Boolean(cookieStore.get(COOKIE_NAMES.spotifyRefresh)?.value);
-  const stravaConnected = Boolean(cookieStore.get(COOKIE_NAMES.stravaRefresh)?.value);
+  let spotifyConnected = Boolean(cookieStore.get(COOKIE_NAMES.spotifyRefresh)?.value);
+  let stravaConnected = Boolean(cookieStore.get(COOKIE_NAMES.stravaRefresh)?.value);
+
+  if (hasSupabaseConfig()) {
+    const userId = getSessionUserId(cookieStore);
+    if (userId) {
+      const providers = await listProvidersForUser(userId);
+      spotifyConnected = providers.has("spotify");
+      stravaConnected = providers.has("strava");
+    } else {
+      spotifyConnected = false;
+      stravaConnected = false;
+    }
+  }
 
   return (
     <main className="page">

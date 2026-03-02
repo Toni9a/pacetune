@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { hasSupabaseConfig, loadOwnerHistory, ownerCookieName } from "@/lib/supabase-rest";
+import { getSessionUserId, hasSupabaseConfig, loadOwnerHistory } from "@/lib/supabase-rest";
 
 export async function GET() {
   try {
@@ -9,12 +9,15 @@ export async function GET() {
     }
 
     const cookieStore = await cookies();
-    const ownerId = cookieStore.get(ownerCookieName())?.value;
-    if (!ownerId) {
-      return NextResponse.json({ error: "No saved history yet. Run a sync first." }, { status: 404 });
+    const userId = getSessionUserId(cookieStore);
+    if (!userId) {
+      return NextResponse.json({ error: "No user session. Connect Spotify + Strava first." }, { status: 401 });
     }
 
-    const report = await loadOwnerHistory(ownerId);
+    const report = await loadOwnerHistory(userId);
+    if (!report.run_count) {
+      return NextResponse.json({ error: "No saved history yet. Run a sync first." }, { status: 404 });
+    }
     return NextResponse.json(report);
   } catch (error) {
     return NextResponse.json({ error: error.message || "Unknown error." }, { status: 500 });

@@ -5,6 +5,16 @@ create table if not exists pacetune_users (
   created_at timestamptz not null default now()
 );
 
+create table if not exists pacetune_provider_accounts (
+  user_id uuid not null references pacetune_users(id) on delete cascade,
+  provider text not null check (provider in ('spotify', 'strava')),
+  provider_user_id text not null,
+  provider_refresh_token text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (provider, provider_user_id)
+);
+
 create table if not exists pacetune_runs (
   owner_id uuid not null references pacetune_users(id) on delete cascade,
   run_id text not null,
@@ -60,5 +70,6 @@ alter table pacetune_runs enable row level security;
 alter table pacetune_tracks enable row level security;
 alter table pacetune_splits enable row level security;
 alter table pacetune_split_tracks enable row level security;
+alter table pacetune_provider_accounts enable row level security;
 
 -- Server routes use service role key, so RLS policies are optional for MVP.

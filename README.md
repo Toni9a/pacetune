@@ -68,9 +68,11 @@ To keep old PaceTunes beyond Spotify's recent-play window:
 3. Add env vars (local + Vercel):
    - `SUPABASE_URL`
    - `SUPABASE_SERVICE_ROLE_KEY` (server only, never expose in client)
+   - `APP_TOKEN_ENCRYPTION_KEY` (encrypts provider refresh tokens at rest)
 
 Then:
-- `/api/sync` writes run/split/song mappings to Supabase.
+- OAuth callbacks map Spotify/Strava identities to one app user (no email signup).
+- `/api/sync` reads provider refresh tokens from Supabase and writes run/split/song mappings.
 - `/api/history` reads saved PaceTunes for the current user cookie.
 - UI button `Load Saved PaceTunes` loads persisted history.
 

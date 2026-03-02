@@ -1,6 +1,8 @@
+import crypto from "node:crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { appUrl, commonCookieOptions, COOKIE_NAMES, formBody, parseJson } from "@/lib/oauth";
+import { findUserByProvider, getSessionUserId, hasSupabaseConfig, upsertProviderAccount } from "@/lib/supabase-rest";
 
 export async function GET(request) {
   const url = new URL(request.url);
@@ -32,6 +34,10 @@ export async function GET(request) {
     })
   });
   const payload = await parseJson(tokenResponse, "Strava code exchange");
+  const stravaUserId = payload?.athlete?.id;
+  if (!stravaUserId) {
+    return NextResponse.redirect(`${appUrl()}?strava_error=missing_strava_user_id`);
+  }
 
   if (!payload.refresh_token) {
     return NextResponse.redirect(`${appUrl()}?strava_error=missing_refresh_token`);
@@ -39,9 +45,26 @@ export async function GET(request) {
 
   const response = NextResponse.redirect(`${appUrl()}?strava_connected=1`);
   response.cookies.set(COOKIE_NAMES.stravaState, "", { ...commonCookieOptions(), maxAge: 0 });
-  response.cookies.set(COOKIE_NAMES.stravaRefresh, payload.refresh_token, {
-    ...commonCookieOptions(),
-    maxAge: 365 * 24 * 60 * 60
-  });
+  if (hasSupabaseConfig()) {
+    const existingUser = await findUserByProvider("strava", stravaUserId);
+    const sessionUser = getSessionUserId(cookieStore);
+    const userId = sessionUser || existingUser || crypto.randomUUID();
+    await upsertProviderAccount({
+      userId,
+      provider: "strava",
+      providerUserId: stravaUserId,
+      refreshToken: payload.refresh_token
+    });
+    response.cookies.set(COOKIE_NAMES.userSession, userId, {
+      ...commonCookieOptions(),
+      maxAge: 365 * 24 * 60 * 60
+    });
+  } else {
+    // Legacy fallback mode without Supabase persistence.
+    response.cookies.set(COOKIE_NAMES.stravaRefresh, payload.refresh_token, {
+      ...commonCookieOptions(),
+      maxAge: 365 * 24 * 60 * 60
+    });
+  }
   return response;
 }
