@@ -61,6 +61,18 @@ function songsBySplit(run) {
   });
 }
 
+function splitBubbleLines(split) {
+  const lines = [split.kmLabel];
+  if (split.songs.length) {
+    for (const song of split.songs) {
+      lines.push(`${song.track_name} - ${song.artists}`);
+    }
+  } else {
+    lines.push("No song in this split");
+  }
+  return lines;
+}
+
 export default function SyncPanel({ ready }) {
   const [start, setStart] = useState(defaultStart);
   const [end, setEnd] = useState(defaultEnd);
@@ -153,13 +165,47 @@ export default function SyncPanel({ ready }) {
   async function exportShareCard(run) {
     try {
       setExportingRunId(run.run_id);
+      const splitRows = songsBySplit(run);
       const canvas = document.createElement("canvas");
       canvas.width = 1080;
-      canvas.height = 1520;
       const ctx = canvas.getContext("2d");
       if (!ctx) {
         throw new Error("Canvas not available.");
       }
+
+      function wrapText(text, maxWidth) {
+        const words = String(text || "").split(" ");
+        const lines = [];
+        let current = "";
+        for (const word of words) {
+          const test = current ? `${current} ${word}` : word;
+          if (ctx.measureText(test).width <= maxWidth) {
+            current = test;
+          } else {
+            if (current) {
+              lines.push(current);
+            }
+            current = word;
+          }
+        }
+        if (current) {
+          lines.push(current);
+        }
+        return lines;
+      }
+
+      ctx.font = "500 23px 'Avenir Next', 'Trebuchet MS', sans-serif";
+      let requiredHeight = 110;
+      for (const split of splitRows) {
+        const lines = splitBubbleLines(split);
+        let bubbleLineCount = 0;
+        for (const line of lines) {
+          bubbleLineCount += Math.max(1, wrapText(line, 640).length);
+        }
+        const bubbleHeight = Math.max(98, 26 + bubbleLineCount * 30);
+        requiredHeight += bubbleHeight + 56;
+      }
+      canvas.height = Math.max(1520, Math.min(4200, requiredHeight + 72));
 
       ctx.fillStyle = "#f3eee6";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -192,27 +238,6 @@ export default function SyncPanel({ ready }) {
         ctx.closePath();
       }
 
-      function wrapText(text, maxWidth) {
-        const words = String(text || "").split(" ");
-        const lines = [];
-        let current = "";
-        for (const word of words) {
-          const test = current ? `${current} ${word}` : word;
-          if (ctx.measureText(test).width <= maxWidth) {
-            current = test;
-          } else {
-            if (current) {
-              lines.push(current);
-            }
-            current = word;
-          }
-        }
-        if (current) {
-          lines.push(current);
-        }
-        return lines;
-      }
-
       roundedRect(42, 42, canvas.width - 84, canvas.height - 84, 24);
       ctx.save();
       ctx.clip();
@@ -230,18 +255,9 @@ export default function SyncPanel({ ready }) {
       roundedRect(42, 42, canvas.width - 84, canvas.height - 84, 24);
       ctx.stroke();
 
-      const splitRows = songsBySplit(run).slice(0, 8);
       let y = 95;
       for (const split of splitRows) {
-        const lines = [];
-        lines.push(split.kmLabel);
-        if (split.songs.length) {
-          for (const s of split.songs) {
-            lines.push(`${s.track_name} - ${s.artists}`);
-          }
-        } else {
-          lines.push("No song in this split");
-        }
+        const lines = splitBubbleLines(split);
 
         ctx.font = "500 23px 'Avenir Next', 'Trebuchet MS', sans-serif";
         let bubbleLineCount = 0;
@@ -289,9 +305,6 @@ export default function SyncPanel({ ready }) {
         ctx.fillText(paceText, x + bubbleWidth - paceW + 2, y + bubbleHeight + 40);
 
         y += bubbleHeight + 56;
-        if (y > canvas.height - 120) {
-          break;
-        }
       }
 
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
