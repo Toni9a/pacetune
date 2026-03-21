@@ -275,12 +275,13 @@ a {
 
 .bubble {
   width: min(92%, 620px);
-  background: linear-gradient(125deg, #1d66f2, #0b52de);
+  background: linear-gradient(125deg, rgba(29, 102, 242, 0.94), rgba(11, 82, 222, 0.9));
   color: #eff4ff;
   border-radius: 28px;
   padding: 12px 16px;
   box-shadow: 0 7px 16px rgba(18, 57, 134, 0.22);
   position: relative;
+  backdrop-filter: blur(2px);
 }
 
 .bubble::after {
@@ -295,7 +296,7 @@ a {
 }
 
 .bubble.empty {
-  background: linear-gradient(125deg, #5f7fbb, #4c6ca8);
+  background: linear-gradient(125deg, rgba(95, 127, 187, 0.9), rgba(76, 108, 168, 0.86));
 }
 
 .bubble.empty::after {
