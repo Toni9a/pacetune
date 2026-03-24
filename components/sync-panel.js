@@ -45,6 +45,42 @@ function fmtShortDateTime(iso) {
   }).format(d);
 }
 
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function hexToRgb(hex) {
+  const normalized = hex.replace("#", "");
+  const full = normalized.length === 3
+    ? normalized.split("").map((char) => char + char).join("")
+    : normalized;
+  const num = Number.parseInt(full, 16);
+  return {
+    r: (num >> 16) & 255,
+    g: (num >> 8) & 255,
+    b: num & 255
+  };
+}
+
+function rgbToHex({ r, g, b }) {
+  const toHex = (value) => clamp(Math.round(value), 0, 255).toString(16).padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function adjustColor(hex, amount) {
+  const rgb = hexToRgb(hex);
+  return rgbToHex({
+    r: rgb.r + amount,
+    g: rgb.g + amount,
+    b: rgb.b + amount
+  });
+}
+
+function rgba(hex, alpha) {
+  const rgb = hexToRgb(hex);
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+}
+
 function songsBySplit(run) {
   let cumulativeKm = 0;
   return run.splits.map((split) => {
@@ -85,8 +121,22 @@ export default function SyncPanel({ ready }) {
   const [bgMode, setBgMode] = useState("plain");
   const [bgImage, setBgImage] = useState("");
   const [exportingRunId, setExportingRunId] = useState(null);
+  const [bubbleColor, setBubbleColor] = useState("#1563e8");
+  const [bubbleOpacity, setBubbleOpacity] = useState(74);
 
   const canRun = useMemo(() => ready && !loading, [ready, loading]);
+  const bubbleAlpha = bubbleOpacity / 100;
+  const bubbleStyles = {
+    "--bubble-start": rgba(adjustColor(bubbleColor, 22), clamp(bubbleAlpha + 0.05, 0, 1)),
+    "--bubble-end": rgba(adjustColor(bubbleColor, -8), bubbleAlpha),
+    "--bubble-tail": rgba(adjustColor(bubbleColor, -8), bubbleAlpha),
+    "--bubble-empty-start": rgba(adjustColor(bubbleColor, 58), clamp(bubbleAlpha - 0.05, 0.2, 0.95)),
+    "--bubble-empty-end": rgba(adjustColor(bubbleColor, 28), clamp(bubbleAlpha - 0.08, 0.16, 0.92)),
+    "--bubble-empty-tail": rgba(adjustColor(bubbleColor, 28), clamp(bubbleAlpha - 0.08, 0.16, 0.92))
+  };
+  const threadStageStyle = bgMode === "photo" && bgImage
+    ? { ...bubbleStyles, backgroundImage: `url(${bgImage})` }
+    : bubbleStyles;
 
   async function onSubmit(event) {
     event.preventDefault();
@@ -270,8 +320,8 @@ export default function SyncPanel({ ready }) {
 
         roundedRect(x, y, bubbleWidth, bubbleHeight, 50);
         const bubbleGrad = ctx.createLinearGradient(x, y, x + bubbleWidth, y + bubbleHeight);
-        bubbleGrad.addColorStop(0, split.songs.length ? "#2b8ff2" : "#617fb9");
-        bubbleGrad.addColorStop(1, split.songs.length ? "#1563e8" : "#4c6ca7");
+        bubbleGrad.addColorStop(0, split.songs.length ? rgba(adjustColor(bubbleColor, 22), clamp(bubbleAlpha + 0.05, 0, 1)) : rgba(adjustColor(bubbleColor, 58), clamp(bubbleAlpha - 0.05, 0.2, 0.95)));
+        bubbleGrad.addColorStop(1, split.songs.length ? rgba(adjustColor(bubbleColor, -8), bubbleAlpha) : rgba(adjustColor(bubbleColor, 28), clamp(bubbleAlpha - 0.08, 0.16, 0.92)));
         ctx.fillStyle = bubbleGrad;
         ctx.fill();
         ctx.beginPath();
@@ -279,6 +329,9 @@ export default function SyncPanel({ ready }) {
         ctx.lineTo(x + bubbleWidth + 20, y + bubbleHeight + 10);
         ctx.lineTo(x + bubbleWidth - 2, y + bubbleHeight + 3);
         ctx.closePath();
+        ctx.fillStyle = split.songs.length
+          ? rgba(adjustColor(bubbleColor, -8), bubbleAlpha)
+          : rgba(adjustColor(bubbleColor, 28), clamp(bubbleAlpha - 0.08, 0.16, 0.92));
         ctx.fill();
 
         ctx.fillStyle = "#eef4ff";
@@ -408,6 +461,23 @@ export default function SyncPanel({ ready }) {
                 <option value="plain">Plain</option>
                 <option value="photo">Photo</option>
               </select>
+              <label htmlFor="bubble-opacity">Bubble Opacity</label>
+              <input
+                id="bubble-opacity"
+                type="range"
+                min="35"
+                max="100"
+                value={bubbleOpacity}
+                onChange={(e) => setBubbleOpacity(Number(e.target.value))}
+              />
+              <span>{bubbleOpacity}%</span>
+              <label htmlFor="bubble-color">Bubble Color</label>
+              <input
+                id="bubble-color"
+                type="color"
+                value={bubbleColor}
+                onChange={(e) => setBubbleColor(e.target.value)}
+              />
               <input type="file" accept="image/*" onChange={onPickBackground} />
             </div>
           ) : null}
@@ -439,7 +509,7 @@ export default function SyncPanel({ ready }) {
               {viewMode === "messages" ? (
                 <div
                   className={`chat-thread chat-thread-stage ${bgMode === "photo" && bgImage ? "with-photo" : ""}`}
-                  style={bgMode === "photo" && bgImage ? { backgroundImage: `url(${bgImage})` } : undefined}
+                  style={threadStageStyle}
                 >
                   {songsBySplit(run).map((split) => (
                     <div className="chat-row" key={`${run.run_id}-${split.split_index}`}>
