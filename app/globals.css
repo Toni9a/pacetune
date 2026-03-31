@@ -265,6 +265,14 @@ a {
   align-items: flex-end;
 }
 
+.chat-row.left {
+  align-items: flex-start;
+}
+
+.chat-row.right {
+  align-items: flex-end;
+}
+
 .landing-demo {
   margin-top: 10px;
   border-radius: 16px;
@@ -293,6 +301,12 @@ a {
   height: 16px;
   background: var(--bubble-tail, #0b52de);
   clip-path: polygon(0 100%, 100% 100%, 100% 0);
+}
+
+.chat-row.left .bubble::after {
+  right: auto;
+  left: 0;
+  clip-path: polygon(0 0, 0 100%, 100% 100%);
 }
 
 .bubble.empty {
@@ -331,6 +345,10 @@ a {
   margin: 4px 6px 0 0;
   font-size: 0.9rem;
   color: #6a768b;
+}
+
+.chat-row.left .bubble-meta {
+  margin: 4px 0 0 6px;
 }
 
 .chat-thread-stage.with-photo .bubble-meta {

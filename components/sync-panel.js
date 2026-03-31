@@ -109,6 +109,10 @@ function splitBubbleLines(split) {
   return lines;
 }
 
+function shouldAlternateBubbles(splitCount) {
+  return splitCount >= 10;
+}
+
 export default function SyncPanel({ ready }) {
   const [start, setStart] = useState(defaultStart);
   const [end, setEnd] = useState(defaultEnd);
@@ -216,6 +220,7 @@ export default function SyncPanel({ ready }) {
     try {
       setExportingRunId(run.run_id);
       const splitRows = songsBySplit(run);
+      const alternating = shouldAlternateBubbles(splitRows.length);
       const canvas = document.createElement("canvas");
       canvas.width = 1080;
       const ctx = canvas.getContext("2d");
@@ -306,7 +311,7 @@ export default function SyncPanel({ ready }) {
       ctx.stroke();
 
       let y = 95;
-      for (const split of splitRows) {
+      for (const [index, split] of splitRows.entries()) {
         const lines = splitBubbleLines(split);
 
         ctx.font = "500 23px 'Avenir Next', 'Trebuchet MS', sans-serif";
@@ -316,7 +321,8 @@ export default function SyncPanel({ ready }) {
         }
         const bubbleHeight = Math.max(98, 26 + bubbleLineCount * 30);
         const bubbleWidth = 690;
-        const x = canvas.width - bubbleWidth - 70;
+        const isLeft = alternating && index % 2 === 1;
+        const x = isLeft ? 70 : canvas.width - bubbleWidth - 70;
 
         roundedRect(x, y, bubbleWidth, bubbleHeight, 50);
         const bubbleGrad = ctx.createLinearGradient(x, y, x + bubbleWidth, y + bubbleHeight);
@@ -325,9 +331,15 @@ export default function SyncPanel({ ready }) {
         ctx.fillStyle = bubbleGrad;
         ctx.fill();
         ctx.beginPath();
-        ctx.moveTo(x + bubbleWidth - 2, y + bubbleHeight - 16);
-        ctx.lineTo(x + bubbleWidth + 20, y + bubbleHeight + 10);
-        ctx.lineTo(x + bubbleWidth - 2, y + bubbleHeight + 3);
+        if (isLeft) {
+          ctx.moveTo(x + 2, y + bubbleHeight - 16);
+          ctx.lineTo(x - 20, y + bubbleHeight + 10);
+          ctx.lineTo(x + 2, y + bubbleHeight + 3);
+        } else {
+          ctx.moveTo(x + bubbleWidth - 2, y + bubbleHeight - 16);
+          ctx.lineTo(x + bubbleWidth + 20, y + bubbleHeight + 10);
+          ctx.lineTo(x + bubbleWidth - 2, y + bubbleHeight + 3);
+        }
         ctx.closePath();
         ctx.fillStyle = split.songs.length
           ? rgba(adjustColor(bubbleColor, -8), bubbleAlpha)
@@ -355,7 +367,8 @@ export default function SyncPanel({ ready }) {
         ctx.font = "500 18px 'Avenir Next', 'Trebuchet MS', sans-serif";
         const paceText = split.paceLabel;
         const paceW = ctx.measureText(paceText).width;
-        ctx.fillText(paceText, x + bubbleWidth - paceW + 2, y + bubbleHeight + 40);
+        const paceX = isLeft ? x + 4 : x + bubbleWidth - paceW + 2;
+        ctx.fillText(paceText, paceX, y + bubbleHeight + 40);
 
         y += bubbleHeight + 56;
       }
@@ -484,7 +497,10 @@ export default function SyncPanel({ ready }) {
           <p>
             <strong>Runs found:</strong> {report.run_count}
           </p>
-          {report.runs.map((run) => (
+          {report.runs.map((run) => {
+            const splitRows = songsBySplit(run);
+            const alternating = shouldAlternateBubbles(splitRows.length);
+            return (
             <article className="run" key={run.run_id}>
               <h3>{run.name}</h3>
               <p>
@@ -511,26 +527,29 @@ export default function SyncPanel({ ready }) {
                   className={`chat-thread chat-thread-stage ${bgMode === "photo" && bgImage ? "with-photo" : ""}`}
                   style={threadStageStyle}
                 >
-                  {songsBySplit(run).map((split) => (
-                    <div className="chat-row" key={`${run.run_id}-${split.split_index}`}>
-                      <div className={`bubble ${split.songs.length ? "" : "empty"}`}>
-                        <p className="bubble-title">
-                          {split.kmLabel}
-                        </p>
-                        {split.songs.length ? (
-                          split.songs.map((song) => (
-                            <p className="bubble-line" key={`${song.track_id}-${song.ended_at}`}>
-                              {song.track_name}
-                              <span> - {song.artists}</span>
-                            </p>
-                          ))
-                        ) : (
-                          <p className="bubble-line muted">No song in this split</p>
-                        )}
+                  {splitRows.map((split, index) => {
+                    const isLeft = alternating && index % 2 === 1;
+                    return (
+                      <div className={`chat-row ${isLeft ? "left" : "right"}`} key={`${run.run_id}-${split.split_index}`}>
+                        <div className={`bubble ${split.songs.length ? "" : "empty"}`}>
+                          <p className="bubble-title">
+                            {split.kmLabel}
+                          </p>
+                          {split.songs.length ? (
+                            split.songs.map((song) => (
+                              <p className="bubble-line" key={`${song.track_id}-${song.ended_at}`}>
+                                {song.track_name}
+                                <span> - {song.artists}</span>
+                              </p>
+                            ))
+                          ) : (
+                            <p className="bubble-line muted">No song in this split</p>
+                          )}
+                        </div>
+                        <p className="bubble-meta">{split.paceLabel}</p>
                       </div>
-                      <p className="bubble-meta">{split.paceLabel}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <>
@@ -559,7 +578,8 @@ export default function SyncPanel({ ready }) {
                 </>
               )}
             </article>
-          ))}
+            );
+          })}
         </div>
       ) : null}
     </section>
