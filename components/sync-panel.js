@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { listLayoutsForClient } from "@/lib/layout-catalog";
 
 function asInputValue(date) {
   const year = date.getFullYear();
@@ -119,6 +120,7 @@ function shouldAlternateBubbles(splitCount) {
 }
 
 export default function SyncPanel({ ready }) {
+  const layoutOptions = useMemo(() => listLayoutsForClient(), []);
   const [start, setStart] = useState(defaultStart);
   const [end, setEnd] = useState(defaultEnd);
   const [loading, setLoading] = useState(false);
@@ -132,6 +134,15 @@ export default function SyncPanel({ ready }) {
   const [exportingRunId, setExportingRunId] = useState(null);
   const [bubbleColor, setBubbleColor] = useState("#1563e8");
   const [bubbleOpacity, setBubbleOpacity] = useState(74);
+  const [remixRunId, setRemixRunId] = useState("");
+  const [remixImageFile, setRemixImageFile] = useState(null);
+  const [remixExtraInstructions, setRemixExtraInstructions] = useState("");
+  const [remixLayoutId, setRemixLayoutId] = useState("auto");
+  const [layoutFilter, setLayoutFilter] = useState("all");
+  const [layoutPickerOpen, setLayoutPickerOpen] = useState(false);
+  const [remixLoading, setRemixLoading] = useState(false);
+  const [remixError, setRemixError] = useState("");
+  const [remixResult, setRemixResult] = useState(null);
 
   const canRun = useMemo(() => ready && !loading, [ready, loading]);
   const bubbleAlpha = bubbleOpacity / 100;
@@ -163,6 +174,7 @@ export default function SyncPanel({ ready }) {
       }
       setReport(payload);
       setSource("live");
+      setRemixRunId(payload.runs?.[0]?.run_id ? String(payload.runs[0].run_id) : "");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -181,6 +193,7 @@ export default function SyncPanel({ ready }) {
       }
       setReport(payload);
       setSource("demo");
+      setRemixRunId(payload.runs?.[0]?.run_id ? String(payload.runs[0].run_id) : "");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -199,12 +212,75 @@ export default function SyncPanel({ ready }) {
       }
       setReport(payload);
       setSource("saved");
+      setRemixRunId(payload.runs?.[0]?.run_id ? String(payload.runs[0].run_id) : "");
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   }
+
+  async function onGenerateRemix(event) {
+    event.preventDefault();
+    setRemixError("");
+    setRemixResult(null);
+
+    if (!report?.runs?.length) {
+      setRemixError("Load or sync a run first.");
+      return;
+    }
+    const chosenLayout = remixLayoutId === "auto"
+      ? null
+      : layoutOptions.find((layout) => layout.id === remixLayoutId) || null;
+    const imageRequired = !chosenLayout || chosenLayout.type !== "music_only";
+
+    if (imageRequired && !remixImageFile) {
+      setRemixError("Choose an image first.");
+      return;
+    }
+
+    const run = report.runs.find((item) => String(item.run_id) === String(remixRunId)) || report.runs[0];
+    const formData = new FormData();
+    if (remixImageFile) {
+      formData.set("image", remixImageFile);
+    }
+    formData.set("run", JSON.stringify(run));
+    formData.set("extraInstructions", remixExtraInstructions);
+    formData.set("layoutId", remixLayoutId);
+
+    try {
+      setRemixLoading(true);
+      const response = await fetch("/api/gemini/remix", {
+        method: "POST",
+        body: formData
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Image remix failed.");
+      }
+      setRemixResult(payload);
+    } catch (err) {
+      setRemixError(err.message);
+    } finally {
+      setRemixLoading(false);
+    }
+  }
+
+  const visibleLayouts = useMemo(() => {
+    if (layoutFilter === "all") {
+      return layoutOptions;
+    }
+    return layoutOptions.filter((layout) => layout.type === layoutFilter);
+  }, [layoutFilter, layoutOptions]);
+
+  const selectedLayout = remixLayoutId === "auto"
+    ? null
+    : layoutOptions.find((layout) => layout.id === remixLayoutId) || null;
+  const remixNeedsImage = !selectedLayout || selectedLayout.type !== "music_only";
+  const musicOnlyLayouts = useMemo(
+    () => layoutOptions.filter((layout) => layout.type === "music_only"),
+    [layoutOptions]
+  );
 
   function onPickBackground(event) {
     const file = event.target.files?.[0];
@@ -471,6 +547,13 @@ export default function SyncPanel({ ready }) {
             >
               List
             </button>
+            <button
+              type="button"
+              className={`chip ${viewMode === "gemini" ? "active" : ""}`}
+              onClick={() => setViewMode("gemini")}
+            >
+              Gemini
+            </button>
           </div>
           {viewMode === "messages" ? (
             <div className="demo-controls">
@@ -497,6 +580,62 @@ export default function SyncPanel({ ready }) {
                 onChange={(e) => setBubbleColor(e.target.value)}
               />
               <input type="file" accept="image/*" onChange={onPickBackground} />
+            </div>
+          ) : null}
+          {viewMode === "gemini" ? (
+            <div className="demo-controls">
+              <button
+                type="button"
+                className={`chip ${remixLayoutId === "auto" ? "active" : ""}`}
+                onClick={() => setRemixLayoutId("auto")}
+              >
+                Auto
+              </button>
+              <button
+                type="button"
+                className={`chip ${selectedLayout?.type === "photo_overlay" ? "active" : ""}`}
+                onClick={() => {
+                  const firstPhotoLayout = layoutOptions.find((layout) => layout.type === "photo_overlay");
+                  setRemixLayoutId(firstPhotoLayout?.id || "auto");
+                }}
+              >
+                Photo Overlay
+              </button>
+              <button
+                type="button"
+                className={`chip ${selectedLayout?.type === "music_only" ? "active" : ""}`}
+                onClick={() => setRemixLayoutId(musicOnlyLayouts[0]?.id || "auto")}
+              >
+                Music Only
+              </button>
+              <button
+                type="button"
+                className={`chip ${layoutPickerOpen ? "active" : ""}`}
+                onClick={() => setLayoutPickerOpen(true)}
+              >
+                Other
+              </button>
+            </div>
+          ) : null}
+          {viewMode === "gemini" ? (
+            <p className="layout-picker-inline">
+              <strong>Gemini layout:</strong> {selectedLayout ? selectedLayout.name : "Auto Select"}
+            </p>
+          ) : null}
+          {viewMode === "gemini" && selectedLayout?.type === "music_only" ? (
+            <div className="demo-controls">
+              <label htmlFor="music-only-layout">Music-only layout</label>
+              <select
+                id="music-only-layout"
+                value={remixLayoutId}
+                onChange={(e) => setRemixLayoutId(e.target.value)}
+              >
+                {musicOnlyLayouts.map((layout) => (
+                  <option key={`music-layout-${layout.id}`} value={layout.id}>
+                    {layout.name}
+                  </option>
+                ))}
+              </select>
             </div>
           ) : null}
           <p>
@@ -585,6 +724,121 @@ export default function SyncPanel({ ready }) {
             </article>
             );
           })}
+          {viewMode === "gemini" ? (
+            <section className="remix-panel">
+              <h3>Gemini Studio</h3>
+              <p>Turn your run data into a creative image using the selected visual direction.</p>
+              <form onSubmit={onGenerateRemix} className="remix-form">
+                <label htmlFor="remix-run">Run</label>
+                <select
+                  id="remix-run"
+                  value={remixRunId}
+                  onChange={(e) => setRemixRunId(e.target.value)}
+                >
+                  {(report.runs || []).map((run) => (
+                    <option key={`remix-${run.run_id}`} value={run.run_id}>
+                      {run.name} · {run.distance_km.toFixed(2)} km · {fmtShortDateTime(run.start_time)}
+                    </option>
+                  ))}
+                </select>
+
+                {remixNeedsImage ? (
+                  <>
+                    <label htmlFor="remix-image">Photo</label>
+                    <input
+                      id="remix-image"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setRemixImageFile(e.target.files?.[0] || null)}
+                    />
+                  </>
+                ) : (
+                  <p className="layout-picker-hint">This direction works without an uploaded image.</p>
+                )}
+
+                <label htmlFor="remix-instructions">Creative direction</label>
+                <textarea
+                  id="remix-instructions"
+                  rows="4"
+                  placeholder="Example: glossy editorial, dreamy night-run poster, handwritten setlist energy, brutalist music graphic."
+                  value={remixExtraInstructions}
+                  onChange={(e) => setRemixExtraInstructions(e.target.value)}
+                />
+
+                <div className="action-row">
+                  <button type="submit" className="btn primary" disabled={remixLoading}>
+                    {remixLoading ? "Creating..." : "Create Artwork"}
+                  </button>
+                </div>
+              </form>
+              {remixError ? <p className="error">{remixError}</p> : null}
+              {remixResult ? (
+                <div className="remix-result">
+                  <img src={remixResult.imageDataUrl} alt="Gemini PaceTune remix" className="remix-image" />
+                  {remixResult.responseText ? <p className="remix-note">{remixResult.responseText}</p> : null}
+                  {remixResult.selectedLayout ? (
+                    <p className="remix-note">
+                      <strong>Layout used:</strong> {remixResult.selectedLayout.name} ({remixResult.selectedLayout.type})
+                    </p>
+                  ) : null}
+                  {remixResult.analysis ? (
+                    <details>
+                      <summary>Image Analysis</summary>
+                      <pre className="remix-prompt">{remixResult.analysis}</pre>
+                    </details>
+                  ) : null}
+                  <details>
+                    <summary>Prompt Used</summary>
+                    <pre className="remix-prompt">{remixResult.prompt}</pre>
+                  </details>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+          {layoutPickerOpen ? (
+            <div className="layout-modal-backdrop" onClick={() => setLayoutPickerOpen(false)}>
+              <div className="layout-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="layout-modal-head">
+                  <div>
+                    <h3>Choose Layout Direction</h3>
+                    <p>Pick a specific visual system or leave it on auto.</p>
+                  </div>
+                  <button type="button" className="btn" onClick={() => setLayoutPickerOpen(false)}>
+                    Close
+                  </button>
+                </div>
+                <div className="view-toggle" role="tablist" aria-label="Layout filter">
+                  <button type="button" className={`chip ${layoutFilter === "all" ? "active" : ""}`} onClick={() => setLayoutFilter("all")}>
+                    All
+                  </button>
+                  <button type="button" className={`chip ${layoutFilter === "photo_overlay" ? "active" : ""}`} onClick={() => setLayoutFilter("photo_overlay")}>
+                    Photo Overlay
+                  </button>
+                  <button type="button" className={`chip ${layoutFilter === "music_only" ? "active" : ""}`} onClick={() => setLayoutFilter("music_only")}>
+                    Music Only
+                  </button>
+                </div>
+                <div className="layout-grid">
+                  {visibleLayouts.map((layout) => (
+                    <button
+                      type="button"
+                      key={layout.id}
+                      className={`layout-card ${remixLayoutId === layout.id ? "selected" : ""}`}
+                      onClick={() => {
+                        setRemixLayoutId(layout.id);
+                        setLayoutPickerOpen(false);
+                      }}
+                    >
+                      <div className="layout-card-top">
+                        <strong>{layout.name}</strong>
+                        <span className="pill">{layout.type === "photo_overlay" ? "Photo" : "Music Only"}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </section>

@@ -1,0 +1,482 @@
+{
+  "version": "2.0.0",
+  "description": "PaceTune visual layout definitions. Two types: 'photo_overlay' requires a user-uploaded photo. 'music_only' generates a standalone data visual with no photo. Updated v2: all layouts support multiple songs per split (2–3 songs per km is common).",
+  "multi_song_note": "Splits frequently contain 2–3 songs. Every layout must handle this. The preferred approach per layout is defined in data_mapping.multi_song_strategy. Never collapse multiple songs into one line without visual distinction. Never drop songs to save space — reduce font size or restructure first.",
+  "split_colour_palette": [
+    "#7F77DD", "#1D9E75", "#D85A30", "#D4537E", "#378ADD", "#BA7517",
+    "#5DCAA5", "#F0997B", "#AFA9EC", "#9FE1CB", "#EF9F27", "#ED93B1"
+  ],
+  "selection_logic": {
+    "photo_overlay_routing": {
+      "negative_space_clean": ["floating_callouts"],
+      "negative_space_moderate": ["side_margin_strip", "bottom_ticker"],
+      "negative_space_cluttered_OR_fills_frame": ["strava_card", "setlist_tape"],
+      "composition_landscape": ["bottom_ticker", "strava_card"],
+      "composition_portrait": ["side_margin_strip", "setlist_tape"]
+    },
+    "music_only_routing": {
+      "split_count_2_to_4": ["vinyl_disc", "running_track", "gig_poster", "pace_spiral", "run_clock"],
+      "split_count_4_to_8": ["running_track", "waveform_timeline", "pace_equalizer", "subway_line", "tour_map", "album_shelf"],
+      "split_count_any": ["mixtape_player", "cassette_tape", "gig_poster", "star_map"],
+      "high_pace_variance": ["pace_equalizer", "waveform_timeline", "tour_map"],
+      "low_pace_variance": ["mixtape_player", "album_shelf", "vinyl_disc"],
+      "music_identity_strong": ["gig_poster", "cassette_tape", "vinyl_disc", "mixtape_player"],
+      "run_at_night_or_early_morning": ["star_map", "pace_spiral"],
+      "many_songs_per_split": ["mixtape_player", "strava_card", "setlist_tape", "subway_line"],
+      "wants_surprise": ["pace_spiral", "star_map", "pace_spiral"]
+    }
+  },
+
+  "photo_overlay_layouts": [
+    {
+      "id": "side_margin_strip",
+      "type": "photo_overlay",
+      "name": "Side margin strip",
+      "mood": "Focused, editorial, non-intrusive",
+      "photo_requirement": "Portrait or selfie with 18–22% horizontal negative space on one side.",
+      "composition": {
+        "strip_width_percent": 20,
+        "strip_side": "auto — whichever side has more negative space",
+        "strip_background": "rgba(0,0,0,0.55) on light photos, rgba(255,255,255,0.85) on dark",
+        "photo_treatment": "none"
+      },
+      "data_mapping": {
+        "top": "total distance — large",
+        "middle": "per-split rows: split number | pace | then song list below",
+        "split_separator": "thin horizontal rule",
+        "multi_song_strategy": "Each song in the split gets its own sub-row, indented under the pace. Song title italic, artist muted below. If 3 songs, stack all 3 sub-rows. Strip height expands to fit — do not truncate songs.",
+        "bottom": "run name or date"
+      },
+      "typography": {
+        "style": "condensed grotesque or monospace",
+        "color_on_dark": "white",
+        "color_on_light": "near-black (#111)"
+      },
+      "song_completeness_rule": "Every song in every split must appear. If strip is space-constrained, reduce font size before dropping any song. Artist name can be abbreviated to initials if needed.",
+      "fallback": "strava_card",
+      "avoid": [
+        "Placing strip over the subject's face or body",
+        "Hard-coding a fixed row height — rows must expand for multi-song splits",
+        "Dropping songs from a split to save space"
+      ]
+    },
+    {
+      "id": "bottom_ticker",
+      "type": "photo_overlay",
+      "name": "Bottom ticker",
+      "mood": "Sports broadcast, clean, universal",
+      "photo_requirement": "Any photo. Best for wide or action shots.",
+      "composition": {
+        "band_height_percent": "28–32 when splits have multiple songs, 24 for single-song splits",
+        "band_position": "pinned to bottom edge",
+        "band_background": "rgba(0,0,0,0.72) default",
+        "photo_treatment": "none — hard edge between band and photo"
+      },
+      "data_mapping": {
+        "left_zone": "total distance (large) + total time (small)",
+        "centre_zone": "split cards inline. Each split card: pace (top) + stacked song list (below). Songs stack vertically within the card.",
+        "right_zone": "run name or date",
+        "multi_song_strategy": "Each split is a card. Inside the card, songs stack vertically: song 1 title, song 2 title, song 3 title — all same small size. Card height grows. Separator between split cards is a thin vertical rule."
+      },
+      "song_completeness_rule": "All songs in all splits must appear. Increase band height before truncating.",
+      "fallback": "strava_card",
+      "avoid": [
+        "Collapsing multi-song splits to a single line",
+        "Capping band height — let it grow for multi-song splits",
+        "Applying scrim above the band"
+      ]
+    },
+    {
+      "id": "floating_callouts",
+      "type": "photo_overlay",
+      "name": "Floating callouts",
+      "mood": "Editorial, handcrafted, airy",
+      "photo_requirement": "Photos with clear negative space zones. Falls back immediately if none.",
+      "composition": {
+        "placement_logic": "Labels placed only in detected negative space zones. No label on subject.",
+        "label_background": "none",
+        "photo_treatment": "none",
+        "fallback_trigger": "negative_space.quality = cluttered → use bottom_ticker"
+      },
+      "data_mapping": {
+        "per_label": "pace value (largest) | then song list stacked below",
+        "multi_song_strategy": "Each split label is a small stacked block: pace on top, then song 1, song 2, song 3 each on their own line. Font reduces as song count grows. 3-song splits use ~9px song text. Connecting hairline runs from label to an implied baseline.",
+        "grouping": "Labels spread across available negative space"
+      },
+      "song_completeness_rule": "All songs per split in the label. If the label becomes too tall for the zone, fall back to side_margin_strip.",
+      "fallback": "bottom_ticker",
+      "avoid": [
+        "Single-line song summaries like '3 songs'",
+        "Placing labels on the subject",
+        "Using on busy photos"
+      ]
+    },
+    {
+      "id": "strava_card",
+      "type": "photo_overlay",
+      "name": "Strava-style card",
+      "mood": "Familiar, clean, always works",
+      "photo_requirement": "Any photo — universal safe fallback.",
+      "composition": {
+        "structure": "stacked — photo header top, data panel below",
+        "photo_crop": "16:9 or 4:3, no filter",
+        "data_panel_height": "scales with split count and song count per split",
+        "data_panel_background": "dark (#111) or white"
+      },
+      "data_mapping": {
+        "row_1": "run name (left) | date + time (right)",
+        "split_rows": "Each split is a row group. Row group header: km N | pace. Below header: indented song rows — one per song. Artist name beside or below song title.",
+        "footer": "total distance | avg pace | total time",
+        "multi_song_strategy": "Each split expands into a mini-group. Split header row (km + pace), then indented song rows below. Thin divider between split groups. This is the most readable layout for multi-song splits."
+      },
+      "song_completeness_rule": "Every song row must appear. This is the terminal fallback — it must always accommodate all data.",
+      "fallback": "none",
+      "avoid": [
+        "Treating a split with 3 songs as a single row",
+        "Decorative icons or app UI chrome",
+        "Fixed-height rows that can't expand"
+      ]
+    },
+    {
+      "id": "setlist_tape",
+      "type": "photo_overlay",
+      "name": "Setlist tape",
+      "mood": "Music-identity first, concert-cultural",
+      "photo_requirement": "Any portrait photo. Best for casual selfies.",
+      "composition": {
+        "structure": "photo left 55%, setlist panel right 45% (or stacked on narrow formats)",
+        "panel_background": "white or cream (#faf9f5)",
+        "photo_treatment": "none"
+      },
+      "data_mapping": {
+        "song_list": "Every song across all splits listed in run order. Numbered sequentially 01, 02, 03... — not grouped by split.",
+        "song_row": "song title (bold left) | pace of that split (right, muted monospace) | artist below title",
+        "split_transition_marker": "A subtle em-dash or thin rule between the last song of one split and the first of the next — like a setlist break between set halves.",
+        "multi_song_strategy": "All songs flattened into a single ordered list. Split identity is shown only by the pace annotation on the right — same pace value repeats for songs in the same split. This is intentional: it reads as a flowing setlist, not a data table."
+      },
+      "song_completeness_rule": "Every song must appear. This is the most song-complete layout by design.",
+      "fallback": "strava_card",
+      "avoid": [
+        "Grouping songs by split with headers — defeats the setlist feel",
+        "Showing split numbers — the setlist is about songs, not km markers",
+        "Bright saturated colours"
+      ]
+    }
+  ],
+
+  "music_only_layouts": [
+    {
+      "id": "running_track",
+      "type": "music_only",
+      "name": "Running track",
+      "mood": "Top-down, sporty, vivid",
+      "ideal_split_count": "4–8",
+      "min_splits": 3,
+      "max_splits": 8,
+      "visual_concept": "Bird's-eye oval running track. Each concentric lane = one split. Outermost lane = split 1. Lane colour is distinct per split.",
+      "data_mapping": {
+        "lane": "one per split",
+        "lane_colour": "distinct per split from palette",
+        "on_lane": "pace value",
+        "off_lane_callouts": "song callouts outside the oval — one callout per song in the split, stacked vertically as a small list",
+        "centre_oval": "total distance (large) + total time (small)",
+        "multi_song_strategy": "Each lane has a callout bracket outside the oval. The bracket lists all songs for that split stacked vertically: song 1, song 2, song 3. A thin line connects the bracket to the lane. If songs are long, abbreviate to first 20 chars."
+      },
+      "song_completeness_rule": "All songs per lane must appear in the callout. If callout area is crowded, reduce song title font size — never drop a song.",
+      "prompt_fragment": "Visual: top-down oval running track, dark background.\nLanes: one per split, outermost = split 1. Distinct colour per lane.\nOn each lane: pace value.\nOutside oval for each lane: a small stacked song list (all songs for that split), connected by a thin line to the lane edge.\nCentre oval: total distance + total time.\nStyle: clean geometric, flat, no 3D.",
+      "avoid": [
+        "More than 8 splits",
+        "Single song label when the split has multiple songs",
+        "3D perspective"
+      ]
+    },
+    {
+      "id": "vinyl_disc",
+      "type": "music_only",
+      "name": "Vinyl disc",
+      "mood": "Music-first, radial, satisfying",
+      "ideal_split_count": "3–6",
+      "min_splits": 2,
+      "max_splits": 8,
+      "visual_concept": "Vinyl record from above. Disc divided into pie segments — one per split. Concentric groove rings overlaid. Centre label = run totals.",
+      "data_mapping": {
+        "segment_size": "proportional to split time",
+        "segment_colour": "distinct per split",
+        "inside_segment": "pace value (large) + first song title (small). If multiple songs: stack song titles or use 'Song 1 / Song 2' separator.",
+        "outer_ring_legend": "If songs don't fit inside wedges, add a legend ring just outside the disc — split colour dot + full song list per split.",
+        "multi_song_strategy": "Primary: stack up to 2 song titles inside the wedge at small font size. If 3 songs or wedge is too narrow: show pace + song count inside (e.g. '3 songs'), full list in outer legend ring."
+      },
+      "song_completeness_rule": "All songs must appear — either inside the wedge or in the outer legend. Never just show a count.",
+      "prompt_fragment": "Visual: vinyl record top-down, dark background.\nDisc divided into N segments proportional to split time.\nEach segment: distinct colour, pace (large), song titles stacked (small).\nIf segment too narrow for text: outer legend ring shows split colour + song list.\nGroove rings: faint concentric lines over all segments.\nCentre circle: run name + distance.\nStyle: flat, no 3D or gloss.",
+      "avoid": [
+        "Showing only the first song when there are multiple",
+        "Glossy or 3D effects",
+        "Equal segments when split times vary significantly"
+      ]
+    },
+    {
+      "id": "waveform_timeline",
+      "type": "music_only",
+      "name": "Waveform timeline",
+      "mood": "Audio-native, horizontal, editorial",
+      "ideal_split_count": "3–6",
+      "min_splits": 2,
+      "max_splits": 6,
+      "visual_concept": "Stylised audio waveform across full width. Colour-coded sections per split. Bar height encodes pace.",
+      "data_mapping": {
+        "waveform_section": "one block per split",
+        "bar_height": "inverse pace — faster = taller",
+        "section_label_zone": "below each section: stacked song list for that split",
+        "multi_song_strategy": "Below each waveform section, a stacked song column: song 1 (top, most prominent), song 2, song 3 — each on its own line, same split colour, decreasing opacity for each subsequent song. Pace value above the song list.",
+        "header": "run name + total distance"
+      },
+      "song_completeness_rule": "Every song in every section must appear in the label zone below it.",
+      "prompt_fragment": "Visual: audio waveform, dark background, full width.\nN colour-coded sections by split. Bar height = inverse pace.\nBelow each section: pace value then stacked song list (all songs for that split, one per line).\nSection dividers: thin vertical rules.\nHeader: run name + distance.\nStyle: music player aesthetic, flat bars.",
+      "avoid": [
+        "Collapsing multi-song splits to a single song title",
+        "More than 6 splits",
+        "All bars the same height"
+      ]
+    },
+    {
+      "id": "cassette_tape",
+      "type": "music_only",
+      "name": "Cassette tape",
+      "mood": "Nostalgic, tactile, retro",
+      "ideal_split_count": "any",
+      "min_splits": 2,
+      "max_splits": 10,
+      "visual_concept": "Top-down flat cassette illustration. Tape between reels is colour-segmented by split. Cassette body is the label area.",
+      "data_mapping": {
+        "tape_band": "N colour sections proportional to split distance",
+        "tape_section_label": "song title(s) for that split — tiny text on or above the band",
+        "cassette_body": "run name, date, total distance, avg pace",
+        "side_list": "full numbered song list printed on the cassette body sides or below, one per line — all songs across all splits in run order",
+        "multi_song_strategy": "The tape band is too narrow for multiple song titles. Primary label on the band is the pace value only. Full song list is placed on the cassette body as a printed track listing: A SIDE / B SIDE split at the halfway point of the run, numbered tracks."
+      },
+      "song_completeness_rule": "All songs appear in the body track listing. Tape band shows pace only when songs won't fit.",
+      "prompt_fragment": "Visual: flat top-down cassette illustration.\nTape window: segmented by split (colour per split, proportional to distance).\nOn tape segment: pace value only (songs listed on body instead).\nCassette body: printed track listing, A SIDE up to halfway, B SIDE after — all songs in run order, numbered.\nBody also shows: run name, date, total stats.\nStyle: flat, illustrative, not photorealistic.",
+      "avoid": [
+        "Trying to fit multiple song titles on the tape band — too narrow",
+        "Photorealistic rendering",
+        "Losing the cassette shape identity"
+      ]
+    },
+    {
+      "id": "gig_poster",
+      "type": "music_only",
+      "name": "Gig poster",
+      "mood": "Typographic, expressive, culturally resonant",
+      "ideal_split_count": "any",
+      "min_splits": 1,
+      "max_splits": 12,
+      "visual_concept": "The run as a concert. Typographic poster — no illustration. Songs are the setlist.",
+      "data_mapping": {
+        "headline": "run name or total distance",
+        "song_list": "every song in run order, numbered sequentially",
+        "song_row": "song title (bold) + artist (smaller below) + pace of that split (right margin)",
+        "split_marker": "where the km changes, a faint horizontal rule with 'km 2' in tiny type in the margin — unobtrusive but present",
+        "multi_song_strategy": "All songs flattened into a single numbered setlist. The km marker appears between songs at split boundaries. Same pace value is repeated in the right margin for songs in the same split — this is intentional and shows which songs belonged to the same km."
+      },
+      "song_completeness_rule": "Every single song must appear. This layout is the most song-complete by design.",
+      "prompt_fragment": "Visual: typographic concert poster, cream/white background.\nHeadline: run name or distance.\nSetlist: all songs in run order, numbered 01 02 03...\nEach song: title (bold condensed) + artist (smaller) + pace in right margin.\nBetween songs at split boundaries: a faint rule with 'km N' annotation.\nFooter: total distance + run time.\nStyle: gig poster, no illustration, one accent colour for headline only.",
+      "avoid": [
+        "Grouping songs into split blocks with headers — ruins the setlist feel",
+        "Multiple accent colours",
+        "Making it look like an app"
+      ]
+    },
+    {
+      "id": "pace_equalizer",
+      "type": "music_only",
+      "name": "Pace equalizer",
+      "mood": "Technical, bold, music-data hybrid",
+      "ideal_split_count": "3–8 with pace variation",
+      "min_splits": 3,
+      "max_splits": 8,
+      "visual_concept": "Vertical equalizer bars — one per split. Height = pace. Song titles in/below bars.",
+      "data_mapping": {
+        "bar_per_split": "one per split",
+        "bar_height": "inverse pace in seconds — faster = taller",
+        "inside_bar": "song titles stacked vertically inside bar (rotated 90°) if bar is tall enough",
+        "below_bar": "pace value + km N + song list if didn't fit inside",
+        "multi_song_strategy": "If bar is tall enough: stack all song titles vertically inside, rotated 90°, each in a slightly different shade of the split colour. If bar is short: song titles stack below the bar in the label zone, same split colour. Never merge multiple songs into one label.",
+        "bar_height_formula": "seconds = min*60 + sec. fastest = min(all). height = 30 + ((fastest/split_seconds) * 70). Min height 25px."
+      },
+      "song_completeness_rule": "All songs per split visible — either inside the bar or below it in the label zone.",
+      "prompt_fragment": "Visual: vertical equalizer bars, dark background, one per split.\nBar height = inverse pace (faster = taller).\nInside each bar: all songs for that split stacked vertically (rotated 90°), each song its own line.\nIf bar too short: songs stack below the bar in label zone.\nBelow each bar: pace value (bold) + km N.\nHeader: run name or date.\nStyle: flat fills, clean.",
+      "avoid": [
+        "Runs with all equal paces",
+        "More than 8 splits",
+        "Showing only the first song per split"
+      ]
+    },
+    {
+      "id": "album_shelf",
+      "type": "music_only",
+      "name": "Album shelf",
+      "mood": "Warm, bibliophilic, nostalgic",
+      "ideal_split_count": "4–8",
+      "min_splits": 3,
+      "max_splits": 8,
+      "visual_concept": "Record sleeves or book spines on a shelf. One spine per split. Height = split time. Song titles on the spine.",
+      "data_mapping": {
+        "spine_height": "proportional to split time",
+        "spine_width": "fixed or pace-encoded (faster = wider)",
+        "on_spine_vertical": "pace value at bottom + song titles stacked above",
+        "multi_song_strategy": "All songs for the split are printed vertically on the spine, one above the other. Font size reduces as song count increases — 3 songs use a smaller size than 1 song. If the spine is too narrow for stacked vertical text, songs are listed on a small pull-tab label hanging off the top of the spine.",
+        "footer": "run name + total distance"
+      },
+      "song_completeness_rule": "All songs for each split on its spine. Pull-tab label as fallback if spine is too narrow.",
+      "prompt_fragment": "Visual: record spines on a shelf, dark wood background.\nOne spine per split, height proportional to split time.\nEach spine: distinct colour, song titles stacked vertically on the spine, pace at base.\nIf multiple songs: all stacked vertically, smaller font.\nShelf base: single horizontal rule.\nFooter: run name + distance.\nStyle: flat, illustrative.",
+      "avoid": [
+        "More than 8 splits",
+        "Showing only the first song on a multi-song spine",
+        "Making spines all the same height"
+      ]
+    },
+    {
+      "id": "tour_map",
+      "type": "music_only",
+      "name": "Tour map",
+      "mood": "Adventure, handcrafted, geographic",
+      "ideal_split_count": "4–8",
+      "min_splits": 3,
+      "max_splits": 8,
+      "visual_concept": "Abstract map with split stops as tour cities. Dashed route connects them.",
+      "data_mapping": {
+        "stop_pin": "coloured circle per split",
+        "stop_label": "pace + km number below pin. Song list above pin.",
+        "multi_song_strategy": "Above each stop pin: a small stacked list of all songs for that split. Each song on its own line. Font scales down for 3-song stops. The song list is the main label — the pin is the anchor.",
+        "route_line": "dashed, chronological order"
+      },
+      "song_completeness_rule": "All songs per stop in the label above the pin.",
+      "prompt_fragment": "Visual: abstract tour poster map, cream background.\nN stop pins on an implied route, dashed connecting line.\nAbove each pin: stacked song list for that split (all songs).\nBelow each pin: pace + km N.\nHeader: run name as tour headline.\nFooter: date + total distance.\nStyle: illustrated map, flat.",
+      "avoid": [
+        "Real map backgrounds",
+        "More than 8 stops",
+        "Single song label on multi-song stops"
+      ]
+    },
+    {
+      "id": "subway_line",
+      "type": "music_only",
+      "name": "Subway line",
+      "mood": "Urban, graphic, systemic",
+      "ideal_split_count": "3–8",
+      "min_splits": 3,
+      "max_splits": 8,
+      "visual_concept": "Transit map. Each split is a station. Track colour changes per split. Labels alternate above/below.",
+      "data_mapping": {
+        "station_label": "song list for that split + pace",
+        "label_position": "alternating above and below the line",
+        "multi_song_strategy": "Each station label is a small stacked list: pace (top, bold) then each song on its own line below. Labels alternate sides. For 3-song stations, the label is taller — the line accommodates this by having enough vertical space between the track and the canvas edge.",
+        "track_colour": "changes at each split boundary"
+      },
+      "song_completeness_rule": "All songs per station in the station label.",
+      "prompt_fragment": "Visual: abstract transit map, dark background.\nSingle curved line, track colour changes per split.\nN station stops (circle markers).\nStation labels alternate above/below: pace (bold) then all songs stacked.\nLine start: total distance. Line end: run time.\nStyle: clean transit map, flat.",
+      "avoid": [
+        "Real subway map styles — keep it abstract",
+        "Collapsing multi-song stations to a single song",
+        "More than 8 stops"
+      ]
+    },
+    {
+      "id": "pace_spiral",
+      "type": "music_only",
+      "name": "Pace spiral",
+      "mood": "Hypnotic, data-art, meditative",
+      "ideal_split_count": "3–8",
+      "min_splits": 2,
+      "max_splits": 8,
+      "visual_concept": "Archimedean spiral, colour-coded per split. Callouts at split boundaries. Centre = total distance.",
+      "data_mapping": {
+        "spiral_colour": "changes at each split boundary",
+        "split_callout": "at the start of each split: song list + pace as a small stacked label with a hairline to the spiral",
+        "multi_song_strategy": "Each callout is a small stacked block: pace on top, then song 1, song 2, song 3 — each on its own line, set small. Callout placed in the nearest open space around the spiral. Hairline connects callout to the split's start point on the spiral.",
+        "centre": "total distance"
+      },
+      "song_completeness_rule": "All songs per split in their callout label.",
+      "prompt_fragment": "Visual: Archimedean spiral, dark background, 1.5–2 turns.\nSpiral line changes colour at each split boundary.\nAt each split start: a callout label (pace + all songs stacked) connected by a hairline.\nCentre circle: total distance.\nOuter end: run end time.\nStyle: precise, data-art, no fills.",
+      "avoid": [
+        "Only 2 splits — too few turns",
+        "Showing a single song when split has multiple",
+        "Overlapping callout labels — space them radially"
+      ]
+    },
+    {
+      "id": "run_clock",
+      "type": "music_only",
+      "name": "Run clock",
+      "mood": "Temporal, precise, watchface-like",
+      "ideal_split_count": "any",
+      "min_splits": 2,
+      "max_splits": 10,
+      "visual_concept": "Analogue clock face. Arc segments = splits. Clock hands = start and end time.",
+      "data_mapping": {
+        "arc_segment": "one per split, proportional to split time",
+        "inside_arc": "pace value",
+        "outer_arc_label": "song list just outside the disc edge, one per segment",
+        "clock_hands": "start time + end time",
+        "multi_song_strategy": "Inside the arc: pace only (not enough room for multiple songs). Outside the disc edge, adjacent to each arc segment: a small stacked song list for that split. The list is positioned at the midpoint of each arc, radiating outward. For 3-song splits, the external list is 3 lines tall.",
+        "centre": "run name or total distance"
+      },
+      "song_completeness_rule": "All songs per segment in the external label adjacent to that arc.",
+      "prompt_fragment": "Visual: analogue clock face, dark background.\nClock divided into N arc segments (proportional to split time), distinct colours.\nInside each arc: pace value only.\nJust outside the disc edge, at each arc's midpoint: stacked song list for that split.\nTwo clock hands: start time + end time.\nCentre: run name + distance.\nStyle: watchface illustration, flat, minimal.",
+      "avoid": [
+        "Trying to fit song titles inside narrow arc segments",
+        "Smartwatch UI aesthetic — keep it illustrative",
+        "Omitting outer song labels to keep it clean"
+      ]
+    },
+    {
+      "id": "mixtape_player",
+      "type": "music_only",
+      "name": "Mixtape player",
+      "mood": "Digital-nostalgic, music-app, clean",
+      "ideal_split_count": "any — best for high split + high song counts",
+      "min_splits": 1,
+      "max_splits": 20,
+      "visual_concept": "Fictional music player poster. Run = playlist. Every song = a track row. Pace is the track duration.",
+      "data_mapping": {
+        "track_row": "song title (bold) + artist (small below) + pace of that split (right, monospace) + split colour accent strip on left",
+        "split_identity": "all songs in the same split share the same left accent strip colour — visually groups them without needing headers",
+        "split_group_rule": "thin full-width divider between the last song of one split and the first of the next",
+        "multi_song_strategy": "This is the native layout for multi-song splits. Every song is its own row. Songs from the same split share a colour accent — that's how the split grouping is shown. No nested structure needed.",
+        "progress_bar": "shows total run time with elapsed proportion filled",
+        "header": "run name + total distance + theme accent colour"
+      },
+      "song_completeness_rule": "Every single song must be a row. This layout scales to any number of songs.",
+      "prompt_fragment": "Visual: fictional music player poster, dark background.\nHeader bar: run name + total distance + accent colour.\nTrack list: every song as its own row.\nEach row: coloured accent strip (left, same colour per split group) + song title (bold) + artist (small) + pace (right, monospace).\nThin divider between split groups.\nProgress bar below track list + timestamps.\nStyle: editorial music player, not a literal app screenshot.",
+      "avoid": [
+        "Grouping songs under split header rows — rows only, colour grouping is enough",
+        "Literal Spotify/Apple Music styling",
+        "Fixed row heights that can't show artist names"
+      ]
+    },
+    {
+      "id": "star_map",
+      "type": "music_only",
+      "name": "Star map",
+      "mood": "Dreamy, celestial, personal",
+      "ideal_split_count": "3–6",
+      "min_splits": 2,
+      "max_splits": 8,
+      "visual_concept": "Night sky constellation. Each split = a bright star (or cluster of stars). Faint constellation lines connect splits in order.",
+      "data_mapping": {
+        "split_star": "one prominent star per split. Star size encodes pace — faster = slightly larger.",
+        "star_label": "pace value + all songs for that split as a stacked callout adjacent to the star",
+        "multi_song_strategy": "Multi-song splits become a small tight cluster of 2–3 stars instead of one star. Each star in the cluster represents a song. The cluster has one pace callout and individual song title labels beside each star. Constellation lines connect cluster centres, not individual song stars.",
+        "background_stars": "scattered faint small stars for atmosphere",
+        "footer": "run name + date + distance"
+      },
+      "song_completeness_rule": "Every song either has its own star (cluster approach) or appears in the split callout list.",
+      "prompt_fragment": "Visual: night sky, very dark background.\nN split stars in distinct colours — size encodes pace.\nFor multi-song splits: a small cluster of stars (one per song) with individual song labels.\nFaint constellation lines connecting splits in run order.\nEach split: pace callout + all song titles adjacent.\nBackground: scattered faint stars.\nFooter: run name + date + distance.\nStyle: flat celestial chart, no glow.",
+      "avoid": [
+        "More than 8 split stars — sky becomes cluttered",
+        "Single star for multi-song splits with only one song label",
+        "Glow or blur effects"
+      ]
+    }
+  ]
+}

@@ -192,6 +192,13 @@ a {
   background: #fff;
 }
 
+.demo-controls input[type="range"],
+.remix-form select,
+.remix-form textarea,
+.remix-form input[type="file"] {
+  max-width: 100%;
+}
+
 .view-toggle {
   display: flex;
   gap: 8px;
@@ -345,6 +352,141 @@ a {
   margin: 4px 6px 0 0;
   font-size: 0.9rem;
   color: #6a768b;
+}
+
+.remix-panel {
+  margin-top: 16px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+
+.remix-panel h3 {
+  margin: 0 0 6px;
+}
+
+.remix-form {
+  display: grid;
+  gap: 10px;
+}
+
+.remix-form label {
+  font-weight: 700;
+}
+
+.remix-form select,
+.remix-form textarea,
+.remix-form input[type="file"] {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  background: #fff;
+  font: inherit;
+}
+
+.layout-picker-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.layout-picker-inline {
+  margin: 0 0 10px;
+  color: var(--ink-soft);
+}
+
+.layout-picker-hint {
+  color: var(--ink-soft);
+}
+
+.remix-result {
+  margin-top: 14px;
+}
+
+.remix-image {
+  display: block;
+  max-width: 100%;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+}
+
+.remix-note {
+  color: var(--ink-soft);
+}
+
+.remix-prompt {
+  white-space: pre-wrap;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  overflow: auto;
+}
+
+.layout-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 25, 36, 0.56);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 50;
+}
+
+.layout-modal {
+  width: min(980px, 100%);
+  max-height: 88vh;
+  overflow: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: 0 24px 70px rgba(17, 26, 39, 0.28);
+}
+
+.layout-modal-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.layout-modal-head h3 {
+  margin: 0 0 4px;
+}
+
+.layout-modal-head p {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.layout-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.layout-card {
+  text-align: left;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 16px;
+  padding: 14px;
+  cursor: pointer;
+}
+
+.layout-card.selected {
+  border-color: #1f65eb;
+  box-shadow: 0 0 0 2px rgba(31, 101, 235, 0.12);
+}
+
+.layout-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
 }
 
 .chat-row.left .bubble-meta {
