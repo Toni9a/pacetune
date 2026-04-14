@@ -1,186 +1,417 @@
 # PaceTune
 
-PaceTune maps running data (Strava) to listening history (Spotify) so users can see which songs were playing at each split of a run.
+PaceTune maps Strava runs to Spotify listening history so a user can see which songs were playing at each progressive split of a run.
 
-This README is a full project handoff doc for another coding agent (Claude/Codex/etc.).
+This README is written as a full handoff for a fresh coding chat. It should give enough context for someone new to understand:
 
-## 1) Current Product State
+- what the app does
+- how auth/session/persistence work
+- how songs are matched to runs and splits
+- what has already been fixed
+- what the remaining product and technical gaps are
 
-### Live app behavior
-- OAuth login via Spotify + Strava.
-- No email/password signup required.
-- Sync endpoint fetches runs and recently played tracks, computes overlap by time.
-- UI supports:
-  - Message-bubble visualization (per-split songs + pace labels)
-  - List view fallback
-  - Demo scenarios without provider auth
-  - Background photo option for message thread
-  - Share/export card (PNG) that renders bubble-style output
+## Product Summary
 
-### Persistence behavior
-- Data is stored in Supabase when configured.
-- `/api/sync` saves runs/splits/tracks and split-to-track mappings.
-- `/api/history` returns saved PaceTunes for the current app session user.
-- Provider refresh tokens are stored in Supabase `pacetune_provider_accounts`.
-- Token values are encrypted using `APP_TOKEN_ENCRYPTION_KEY` (server-side).
+Current product shape:
 
-### Important limitation (Spotify)
-- Spotify `recently-played` is not a full historical archive.
-- If sync runs too late, older tracks can already be gone.
-- Result: historic runs may show empty songs if they were synced after the window passed.
+- Users connect `Spotify` and `Strava`
+- The app syncs runs from Strava and recently played tracks from Spotify
+- Songs are matched to a run by time overlap
+- Each song is assigned to one split only
+- Runs can be viewed in:
+  - `Messages` view
+  - `List` view
+- Messages view supports:
+  - bubble color picker
+  - bubble opacity slider
+  - plain or photo background
+  - export/share PNG card
+- Saved PaceTunes are stored in Supabase and can be reloaded later
 
-## 2) Tech Stack
+The live app is here:
 
-- Next.js App Router (Node runtime)
-- Plain REST calls to provider APIs + Supabase PostgREST
-- No Supabase SDK dependency in runtime code
-- Python CLI still exists for local data workflows (`pacetune.py`)
+- [https://pacetune.vercel.app](https://pacetune.vercel.app)
 
-## 3) Repo Structure (Key Files)
+## Current Stack
 
-- Web app
-  - `app/page.js`
-  - `components/sync-panel.js`
-  - `app/globals.css`
-- OAuth routes
-  - `app/api/auth/spotify/start/route.js`
-  - `app/api/auth/spotify/callback/route.js`
-  - `app/api/auth/strava/start/route.js`
-  - `app/api/auth/strava/callback/route.js`
-  - `app/api/auth/logout/route.js`
-- Sync/history routes
-  - `app/api/sync/route.js`
-  - `app/api/history/route.js`
-  - `app/api/demo-report/route.js`
-- Core logic
-  - `lib/pacetune.js` (run/song matching)
-  - `lib/supabase-rest.js` (persistence + provider mapping + token encryption)
-  - `lib/oauth.js`
-  - `lib/demo-report.js`
-- DB schema
-  - `supabase/schema.sql`
-- Legacy CLI
-  - `pacetune.py`
+- Next.js App Router
+- Plain `fetch` calls to:
+  - Spotify Web API
+  - Strava API
+  - Supabase PostgREST API
+- No Supabase JS SDK in runtime code
+- Supabase for persistence
+- Vercel for hosting
+- Legacy Python CLI still exists for earlier/local workflows
 
-## 4) Environment Variables
+## Repo Structure
 
-## Required for web app
+### Main app UI
+
+- [app/page.js](/Users/toni/Documents/pactune/app/page.js)
+- [components/sync-panel.js](/Users/toni/Documents/pactune/components/sync-panel.js)
+- [app/globals.css](/Users/toni/Documents/pactune/app/globals.css)
+
+### OAuth routes
+
+- [app/api/auth/spotify/start/route.js](/Users/toni/Documents/pactune/app/api/auth/spotify/start/route.js)
+- [app/api/auth/spotify/callback/route.js](/Users/toni/Documents/pactune/app/api/auth/spotify/callback/route.js)
+- [app/api/auth/strava/start/route.js](/Users/toni/Documents/pactune/app/api/auth/strava/start/route.js)
+- [app/api/auth/strava/callback/route.js](/Users/toni/Documents/pactune/app/api/auth/strava/callback/route.js)
+- [app/api/auth/logout/route.js](/Users/toni/Documents/pactune/app/api/auth/logout/route.js)
+
+### App API routes
+
+- [app/api/sync/route.js](/Users/toni/Documents/pactune/app/api/sync/route.js)
+- [app/api/history/route.js](/Users/toni/Documents/pactune/app/api/history/route.js)
+- [app/api/demo-report/route.js](/Users/toni/Documents/pactune/app/api/demo-report/route.js)
+
+### Core logic
+
+- [lib/pacetune.js](/Users/toni/Documents/pactune/lib/pacetune.js)
+- [lib/supabase-rest.js](/Users/toni/Documents/pactune/lib/supabase-rest.js)
+- [lib/oauth.js](/Users/toni/Documents/pactune/lib/oauth.js)
+- [lib/demo-report.js](/Users/toni/Documents/pactune/lib/demo-report.js)
+
+### Database
+
+- [supabase/schema.sql](/Users/toni/Documents/pactune/supabase/schema.sql)
+
+### Legacy CLI
+
+- [pacetune.py](/Users/toni/Documents/pactune/pacetune.py)
+
+## Environment Variables
+
+### Required for web app auth
+
 - `APP_URL`
 - `SPOTIFY_CLIENT_ID`
 - `SPOTIFY_CLIENT_SECRET`
 - `STRAVA_CLIENT_ID`
 - `STRAVA_CLIENT_SECRET`
 
-## Required for persistence + provider mapping
+### Required for persistence
+
 - `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY` (server-only secret)
-- `APP_TOKEN_ENCRYPTION_KEY` (server-only secret, used for encrypting provider refresh tokens)
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `APP_TOKEN_ENCRYPTION_KEY`
 
-## Notes
-- `SUPABASE_SERVICE_ROLE_KEY` must not be exposed client-side.
-- `APP_TOKEN_ENCRYPTION_KEY` rotation can make previously encrypted tokens unreadable unless accounts reconnect.
+### Notes
 
-## 5) OAuth Setup
+- `SUPABASE_SERVICE_ROLE_KEY` must remain server-only
+- `APP_TOKEN_ENCRYPTION_KEY` is used to encrypt provider refresh tokens before saving to Supabase
+- if `APP_TOKEN_ENCRYPTION_KEY` changes, existing encrypted refresh tokens may become unreadable and users may need to reconnect providers
 
-## Spotify Dashboard
-- Redirect URI:
-  - `https://pacetune.vercel.app/api/auth/spotify/callback`
-- Scope currently used:
-  - `user-read-recently-played`
+## OAuth Setup
 
-## Strava Dashboard
-- Authorization Callback Domain:
-  - `pacetune.vercel.app`
-- Redirect URI is passed in code:
-  - `https://pacetune.vercel.app/api/auth/strava/callback`
+### Spotify
 
-## 6) Supabase Setup
+Configured redirect:
 
-1. Create/open project.
-2. Run SQL file in SQL Editor:
-   - `supabase/schema.sql`
-3. Add env vars in Vercel Production:
-   - `SUPABASE_URL`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-   - `APP_TOKEN_ENCRYPTION_KEY`
-4. Redeploy app.
+- `https://pacetune.vercel.app/api/auth/spotify/callback`
 
-## Quick verification
-- `GET /api/history`
-  - 401: no user session (connect providers first)
-  - 404: user exists but no synced history yet
-  - 200: saved report JSON
+Scope currently used:
 
-## 7) Data Model (Current)
+- `user-read-recently-played`
+
+Important Spotify limitation:
+
+- PaceTune currently relies on `recently-played`
+- this is not a durable full-history archive
+- if sync happens too late, older plays may already be gone
+
+### Strava
+
+Configured callback domain:
+
+- `pacetune.vercel.app`
+
+Redirect path used in code:
+
+- `https://pacetune.vercel.app/api/auth/strava/callback`
+
+Known Strava operational limitation:
+
+- new public users can be blocked by Strava athlete-cap limits if the app has not been expanded beyond dev/single-athlete constraints
+
+## Current Auth and Identity Model
+
+There is no separate email/password signup flow.
+
+Identity is based on provider linking plus an app cookie.
+
+### Session cookie
+
+- app session cookie: `pt_user_id`
+
+Legacy cookie still referenced in compatibility paths:
+
+- `pt_owner_id`
+
+### How provider mapping works
+
+When a user connects Spotify or Strava:
+
+1. the callback gets the provider user ID
+2. the app looks for an existing record in `pacetune_provider_accounts`
+3. if found, it uses that mapped app user
+4. if not found but a current session user exists, it links the provider to that user
+5. otherwise it creates a new app user and links the provider
+
+This means users do not need a separate signup form.
+
+## Supabase Data Model
+
+Current tables:
 
 - `pacetune_users`
 - `pacetune_provider_accounts`
-  - provider identities map to app users (`spotify` / `strava`)
-  - stores encrypted provider refresh token
 - `pacetune_runs`
 - `pacetune_tracks`
 - `pacetune_splits`
 - `pacetune_split_tracks`
 
-## 8) Identity + Session Model (Current)
+### Purpose of each table
 
-- App session cookie: `pt_user_id`
-- On provider callback:
-  - fetch provider user ID
-  - find existing user by `(provider, provider_user_id)`
-  - else create/link to current app user session
-  - else create new app user
-- No separate signup flow.
+`pacetune_users`
 
-## 9) Sync Logic (Current)
+- app-level user row keyed by UUID
 
-1. Resolve app user from `pt_user_id`.
-2. Read provider refresh tokens from Supabase.
-3. Refresh provider access tokens.
-4. Pull Strava runs in requested window.
+`pacetune_provider_accounts`
+
+- provider identity mapping
+- stores encrypted provider refresh tokens
+- providers currently used:
+  - `spotify`
+  - `strava`
+
+`pacetune_runs`
+
+- one row per synced run per user
+
+`pacetune_tracks`
+
+- run-level track list captured for a given run
+
+`pacetune_splits`
+
+- split timing and distance rows for a run
+
+`pacetune_split_tracks`
+
+- join table that assigns a specific track to exactly one split
+
+## How Sync Works
+
+The main sync flow lives in [lib/pacetune.js](/Users/toni/Documents/pactune/lib/pacetune.js) and [app/api/sync/route.js](/Users/toni/Documents/pactune/app/api/sync/route.js).
+
+### High-level flow
+
+1. Read current `pt_user_id` session
+2. Load encrypted Spotify + Strava refresh tokens for that user from Supabase
+3. Refresh both access tokens
+4. Fetch Strava runs in the requested time window
 5. For each run:
-   - pull Spotify plays overlapping run window
+   - fetch Strava activity detail
+   - fetch Spotify recently played tracks around the run window
+   - filter songs to tracks that truly overlap the run
    - compute splits
-   - assign tracks to splits by overlap
-6. Persist report to Supabase.
+   - assign each song to one split
+6. Persist the report to Supabase
+7. Return the live report JSON to the frontend
 
-## 10) Known Gaps / Risks
+## How Songs Are Matched
 
-1. Backfill limitation:
-   - cannot recover songs already outside Spotify recent window.
-2. Scheduled sync missing:
-   - currently user-triggered sync only.
-3. Provider token refresh rotation:
-   - callbacks update refresh token when returned; long-term token lifecycle policies still basic.
-4. Security hardening:
-   - service-role based server routes are MVP-level; RLS policies not fully used yet.
-5. Cross-device account continuity:
-   - works if provider linking is consistent; app-level user management is still minimal.
+Song-to-run and song-to-split logic lives in [lib/pacetune.js](/Users/toni/Documents/pactune/lib/pacetune.js).
 
-## 11) Recommended Next Work (Priority Order)
+### Spotify timing assumption
 
-1. Scheduled sync jobs
-- run every 15-30 minutes per linked user
-- store sync status + last successful sync
+Spotify `recently-played` gives `played_at`.
 
-2. Do-not-overwrite-with-empty safeguard
-- avoid replacing existing run-song mapping with empty result unless forced
+Current assumption:
 
-3. Provider account management
-- show connected providers UI
-- disconnect/reconnect controls per provider
+- `played_at` is treated as the track end timestamp
+- `started_at = played_at - duration_ms`
 
-4. Saved PaceTunes UX
-- dedicated `/my-pacetunes` page
-- filters by date/distance/run name
+This is an approximation, but it is the best historical timing available from the current Spotify endpoint.
 
-5. Better match confidence
-- show confidence tags when overlaps are ambiguous
+### Run matching logic
 
-6. Apple Health ingestion path
-- likely iOS companion + backend upload OR manual export import
+A song belongs to a run if the song interval overlaps the run interval.
 
-## 12) Local Development
+That means:
+
+- songs that started before the run but continued into it can be included
+- songs that started during the run and ended shortly after can be included
+
+### Important recent fix
+
+To avoid dropping songs at the beginning or end of runs, the app now:
+
+- fetches Spotify plays with a `15 minute` padding before and after the run window
+- then filters tracks back down to those that truly overlap the run
+
+This fix was added because songs at run boundaries were getting missed when the fetch window was too strict.
+
+### Split matching logic
+
+Each track is assigned to one split only.
+
+The chosen split is:
+
+- the split with the greatest time overlap with that song
+
+This prevents the same song from appearing at the end of one split and again at the start of the next.
+
+## Split Construction
+
+Split construction is handled in [lib/pacetune.js](/Users/toni/Documents/pactune/lib/pacetune.js).
+
+Current behavior:
+
+- use `splits_metric` from Strava when available
+- support both:
+  - cumulative elapsed split data
+  - per-split elapsed data
+- if there is leftover run time after the final Strava split, add a tail split so the full run end is covered
+- if no Strava splits are available, estimate splits evenly across total run distance/time
+
+This means the app should cover the full run from start to finish, including final partial distance like `8.6 km`, `10.1 km`, `15.1 km`, etc.
+
+## Persistence Behavior
+
+Persistence is implemented in [lib/supabase-rest.js](/Users/toni/Documents/pactune/lib/supabase-rest.js).
+
+### Save behavior
+
+On sync, the app saves:
+
+- run rows
+- run-level tracks
+- splits
+- split-track assignments
+
+### Important overwrite safeguard
+
+There is protection against replacing a richer cached run with a poorer later sync.
+
+Current behavior:
+
+- if an existing saved run has more tracks than the new sync result
+- the richer existing run is preserved instead of being overwritten by emptier data
+
+This was added because Spotify history can fall out of the recent-play window over time.
+
+### What this safeguard does not solve
+
+If a run was already saved empty before this safeguard existed, the app cannot reconstruct those missing songs from Spotify once they are no longer in recent history.
+
+## History Loading
+
+Saved history is loaded via:
+
+- [app/api/history/route.js](/Users/toni/Documents/pactune/app/api/history/route.js)
+
+That route:
+
+- checks Supabase configuration
+- resolves the current app session user from cookie
+- loads saved runs from Supabase
+- returns a report shaped similarly to live sync output
+
+Current limit:
+
+- the last `30` runs are returned by default
+
+## UI Behavior
+
+Main UI is in [components/sync-panel.js](/Users/toni/Documents/pactune/components/sync-panel.js).
+
+### Current views
+
+`Messages`
+
+- per-split message bubbles
+- pace label under each bubble
+- progressive distance labels like `1 km`, `2 km`, `8.6 km`
+- customizable:
+  - bubble color
+  - bubble opacity
+  - plain/photo background
+
+`List`
+
+- plain expandable list view of songs and splits
+
+### Long-run layout
+
+For large runs with many splits:
+
+- message bubbles alternate left/right once there are `10+` split bubbles
+
+This prevents the thread from becoming one long right-aligned column.
+
+### Export/share card
+
+The export card is generated from the same message-style layout.
+
+Current behavior:
+
+- supports long runs with dynamic canvas height
+- uses bubble/photo styling similar to preview
+- uses alternating left/right layout for long runs
+
+## Demo Mode
+
+There is a built-in demo mode so local testing does not require provider auth.
+
+Files:
+
+- [lib/demo-report.js](/Users/toni/Documents/pactune/lib/demo-report.js)
+- [app/api/demo-report/route.js](/Users/toni/Documents/pactune/app/api/demo-report/route.js)
+
+Demo scenarios currently include:
+
+- `Mellow Tempo`
+- `Tempo Session`
+- `Long Run (2 runs)`
+- `No Song Splits`
+
+## API Route Summary
+
+### `GET /api/sync`
+
+Runs live sync for a date window.
+
+Requirements:
+
+- user must have a valid app session
+- both Spotify and Strava must be connected
+- Supabase must be configured
+
+### `GET /api/history`
+
+Loads saved PaceTunes from Supabase for the current app user.
+
+Common responses:
+
+- `401` if no app user session
+- `404` if no saved runs exist
+- `200` if saved history exists
+
+### `GET /api/demo-report`
+
+Returns built-in demo data.
+
+Useful for:
+
+- local UI development
+- visualization work without OAuth
+
+## Local Development
+
+### Start dev server
 
 ```bash
 npm install
@@ -188,49 +419,196 @@ npm run dev -- --hostname 127.0.0.1 --port 3010
 ```
 
 Open:
-- `http://127.0.0.1:3010`
 
-If port is stuck:
+- [http://127.0.0.1:3010](http://127.0.0.1:3010)
+
+### Build
+
 ```bash
-lsof -nP -iTCP:3010 -sTCP:LISTEN
-kill <pid>
+npm run build
 ```
 
-## 13) Deploy (Vercel)
+Note:
 
-1. Push `main`.
-2. Ensure Framework Preset = Next.js.
-3. Output Directory should be empty/default (do not set to `public`).
-4. Set env vars in Production.
-5. Redeploy.
+- Homebrew Node was previously broken because `libsimdjson` was missing
+- this was fixed by reinstalling Homebrew `simdjson` and `node`
 
-## 14) Troubleshooting
+## Deploying on Vercel
 
-## `Supabase is not configured`
-- Missing `SUPABASE_URL` or `SUPABASE_SERVICE_ROLE_KEY` in runtime env.
+1. Push `main`
+2. Ensure Vercel project uses `Next.js`
+3. Leave Output Directory empty/default
+4. Add production env vars
+5. Redeploy
 
-## `/api/history` returns no runs
-- user session exists but no synced history yet; run sync first.
+Production URL:
 
-## Empty songs in saved runs
-- sync happened after songs fell out of Spotify recent window.
+- [https://pacetune.vercel.app](https://pacetune.vercel.app)
 
-## OAuth redirect errors
-- redirect URI mismatch between app and provider dashboard.
+## Supabase Setup
 
-## 15) Security Notes
+1. Create/open the Supabase project
+2. Run:
+   - [supabase/schema.sql](/Users/toni/Documents/pactune/supabase/schema.sql)
+3. Add env vars to Vercel:
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `APP_TOKEN_ENCRYPTION_KEY`
+4. Redeploy
 
-- Never commit secrets.
-- Rotate exposed keys immediately.
-- Service role key should be Production-only in Vercel.
-- `APP_TOKEN_ENCRYPTION_KEY` should be long random secret and treated like credentials.
+## Known Limitations
 
-## 16) Legacy CLI (Still Included)
+### Spotify history is not durable enough on its own
 
-`pacetune.py` supports:
+- if sync happens too late, older plays are gone
+- app can preserve cached runs, but it cannot recover music that was never captured in time
+
+### No automated background sync yet
+
+- sync is still user-triggered
+- this makes Spotify recent-history loss more likely
+
+### Minimal account management
+
+- there is no polished account settings page yet
+- provider disconnect/reconnect UX is still basic
+
+### No Apple Health live integration yet
+
+- direct Apple HealthKit access is not available from a pure web app
+- likely future solution:
+  - lightweight iOS companion app
+  - or manual export/import path
+
+## Most Important Recent Fixes
+
+These are useful context for a new coding chat:
+
+1. User/provider mapping added
+- users are mapped via Spotify/Strava provider IDs in Supabase
+
+2. Saved history added
+- runs/splits/tracks persist in Supabase and can be loaded later
+
+3. Empty overwrite protection added
+- richer saved runs should not be replaced by emptier later syncs
+
+4. Split assignment fixed
+- a song is assigned to one split only, not duplicated across boundaries
+
+5. Long-run export/layout fixed
+- share card height is dynamic
+- long message threads alternate left/right
+
+6. Run-boundary capture improved
+- Spotify fetch uses padded window before filtering to true run overlap
+
+## Recommended Next Work
+
+### Highest priority
+
+1. Automated background sync
+- cron or queue-based sync every 15-30 minutes
+- this is the best protection against Spotify recent-history loss
+
+2. Dedicated saved-runs page
+- e.g. `/my-pacetunes`
+- filters for date, distance, run name
+
+3. Debug visibility
+- show:
+  - total Spotify plays fetched
+  - total plays overlapping run
+  - total songs assigned to splits
+- this would make bug reports much easier to diagnose
+
+### Good product additions
+
+1. Provider management UI
+- connected providers list
+- reconnect/disconnect actions
+
+2. More visualization modes
+- current message style is only one mode
+- timeline/map/card variants are natural next steps
+
+3. Better export presets
+- more card themes
+- more layout presets
+
+4. Confidence / diagnostics
+- surface approximate nature of Spotify timing
+- expose matching confidence for ambiguous cases
+
+## Troubleshooting
+
+### `Supabase is not configured`
+
+Likely causes:
+
+- missing `SUPABASE_URL`
+- missing `SUPABASE_SERVICE_ROLE_KEY`
+
+### `No user session. Connect Spotify + Strava first.`
+
+Likely causes:
+
+- no `pt_user_id` cookie
+- auth flow did not complete correctly
+- user is on a fresh browser/device
+
+### `/api/history` shows no runs
+
+Likely causes:
+
+- user has never synced
+- runs were saved under a different `pt_user_id`
+- user session/cookie changed
+
+### Saved run has empty songs
+
+Likely causes:
+
+- sync happened after songs fell out of Spotify recent history
+- run was already saved empty before preservation safeguards existed
+
+### Sync fails after rotating encryption key
+
+Likely cause:
+
+- old provider refresh tokens can no longer be decrypted
+
+Fix:
+
+- reconnect Spotify and Strava for affected users
+
+### OAuth callback gives blank or odd result
+
+Recent callback hardening redirects callback errors back to the app instead of leaving a blank dead-end page, but dashboard redirect mismatch can still cause provider-side failures.
+
+Check:
+
+- Spotify redirect URI exact match
+- Strava callback domain
+- app athlete/user limits in provider dashboards
+
+## Security Notes
+
+- never commit secrets
+- rotate exposed keys immediately
+- keep `SUPABASE_SERVICE_ROLE_KEY` server-only
+- keep `APP_TOKEN_ENCRYPTION_KEY` secret and stable
+- if service-role or encryption secrets are rotated, verify auth + sync flows afterward
+
+## Legacy CLI
+
+The original Python CLI still exists in [pacetune.py](/Users/toni/Documents/pactune/pacetune.py).
+
+It supports:
+
 - token flows
 - JSON sync reports
-- HTML render
+- HTML rendering
 - plain-text song listing
 
-The web app is now the primary path for multi-user behavior.
+The web app is now the primary path, but the CLI is still useful for direct inspection and one-off local debugging.
