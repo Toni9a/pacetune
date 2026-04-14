@@ -37,7 +37,7 @@ export async function GET(request) {
 
     const url = new URL(request.url);
     const now = new Date();
-    const defaultStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const defaultStart = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
     const start = url.searchParams.get("start") || defaultStart.toISOString();
     const end = url.searchParams.get("end") || now.toISOString();
 
